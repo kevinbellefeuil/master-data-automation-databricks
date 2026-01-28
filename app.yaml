@@ -1,0 +1,10 @@
+command: ["python", "app.py"]
+env:
+  - name: DATABRICKS_SERVER_HOSTNAME
+    value: "YOUR_DATABRICKS_SERVER_HOSTNAME"
+  - name: DATABRICKS_HTTP_PATH
+    value: "YOUR_DATABRICKS_HTTP_PATH"
+  - name: DATABRICKS_TOKEN
+    value: "YOUR_DATABRICKS_TOKEN"
+# NOTE: Replace the placeholder values above with your actual Databricks credentials
+# Recommended: Use Databricks Secrets for production deployments

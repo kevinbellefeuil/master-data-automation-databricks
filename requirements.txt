@@ -1,0 +1,10 @@
+# Flask backend dependencies - REST API Mode
+# @mitigates MasterDataApp:Backend against #vulnerable_dependencies with pinned versions
+
+# Web framework
+Flask==3.0.3
+flask-cors==4.0.1
+Werkzeug==3.0.3
+
+# HTTP client for Databricks REST API
+requests>=2.31.0

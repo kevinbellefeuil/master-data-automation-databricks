@@ -1,0 +1,68 @@
+.approve-deny-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 2px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.toggle-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.approve-button {
+  color: #666;
+}
+
+.approve-button:hover {
+  border-color: #4caf50;
+  background-color: #f1f8f4;
+}
+
+.approve-button.active {
+  background-color: #4caf50;
+  border-color: #4caf50;
+  color: white;
+}
+
+.deny-button {
+  color: #666;
+}
+
+.deny-button:hover {
+  border-color: #f44336;
+  background-color: #fff5f5;
+}
+
+.deny-button.active {
+  background-color: #f44336;
+  border-color: #f44336;
+  color: white;
+}
+
+.toggle-button .icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.toggle-button .label {
+  font-size: 11px;
+}
+
