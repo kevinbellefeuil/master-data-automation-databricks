@@ -17,18 +17,43 @@ const PlanningUnitTable = ({
 }) => {
   // Column name mappings
   const COLUMN_MAPPINGS = {
-    'CURRENT_PLUNITID': 'Current Planning Unit',
+    // Product & Category columns
+    'PNL_CATEGORY_DESC': 'PnL Category Desc',
+    'PRODUCT_LEVEL_2_DESCRIPTION': 'Product Level 2 Desc',
+    'PRODUCT_LEVEL_3_DESCRIPTION': 'Product Level 3 Desc',
+    'PRODUCT_LEVEL_4_DESCRIPTION': 'Product Level 4 Desc',
+    
+    // Material & Supply Chain columns
+    'SUPPLY_CHAIN_SIZE': 'Supply Chain Size',
+    'MATERIAL_GROUP': 'Material Group',
+    'MATERIAL_TYPE': 'Material Type',
+    'MATERIAL': 'Material',
+    'PLANT_MATERIAL_STATUS_DESC': 'Plant Material Status',
+    
+    // ID columns
+    'PRDID': 'Product ID',
+    'LOCID': 'Location ID',
+    
+    // Planning Unit columns (database names with spaces)
+    'CURRENT PLUNITID': 'Current Planning Unit',
+    'CURRENT_PLUNITID': 'Current Planning Unit',  // Handle both versions
     'RECOMMENDED': 'Proposed Planning Unit',
     'OVERWRITE': 'Overwrite',
-    'RECOMMENDED_REASON': 'RECOMMENDED REASON',
-    'PRODUCT_LEVEL_2_DESCRIPTION': 'PRODUCT_LEVEL_2_DESC',
-    'PRODUCT_LEVEL_3_DESCRIPTION': 'PRODUCT_LEVEL_3_DESC',
-    'PRODUCT_LEVEL_4_DESCRIPTION': 'PRODUCT_LEVEL_4_DESC',
-    'PLANT_MATERIAL_STATUS_DESC': 'PLANT_MATERIAL_STATUS'
+    'RECOMMENDED_REASON': 'Recommended Reason',
+    'RECOMMEND REASON': 'Recommended Reason',  // Handle both versions
+    
+    // Approval column - handle all variations
+    'APPROVE?': 'Approve?',
+    'Approve?': 'Approve?',
+    'approval': 'Approve?',
+    
+    // Recommended Reason - handle all variations
+    'RECOMMENDED REASON': 'Recommended Reason',
+    'Recommended Reason': 'Recommended Reason'
   }
 
   // Columns that should not be filterable
-  const NON_FILTERABLE_COLUMNS = ['APPROVE?', 'RECOMMENDED REASON', 'approval', 'OVERWRITE']
+  const NON_FILTERABLE_COLUMNS = ['Approve?', 'Recommended Reason', 'approval', 'Overwrite']
 
   // Define explicit column order based on user requirements
   // RecordID and Last Refresh Date are excluded from table display
@@ -45,10 +70,14 @@ const PlanningUnitTable = ({
     'PLANT_MATERIAL_STATUS_DESC',
     'PRDID',
     'LOCID',
-    'CURRENT_PLUNITID',      // Current Planning Unit
+    'CURRENT PLUNITID',      // Current Planning Unit (with space)
+    'CURRENT_PLUNITID',      // Current Planning Unit (without space - fallback)
     'RECOMMENDED',           // Proposed Planning Unit
     'OVERWRITE',             // Overwrite
-    'RECOMMENDED_REASON'     // RECOMMENDED REASON
+    'APPROVE?',              // Approve?
+    'approval',              // Approve? (fallback)
+    'RECOMMEND REASON',      // Recommended Reason (with space)
+    'RECOMMENDED_REASON'     // Recommended Reason (without space - fallback)
   ]
 
   // Get all column names from the first row of data
@@ -264,7 +293,19 @@ const PlanningUnitTable = ({
   }
 
   const getDisplayName = (columnKey) => {
-    return COLUMN_MAPPINGS[columnKey] || columnKey
+    // First try exact match
+    if (COLUMN_MAPPINGS[columnKey]) {
+      return COLUMN_MAPPINGS[columnKey]
+    }
+    
+    // Try uppercase version (for columns like "APPROVE?" or "RECOMMENDED REASON")
+    const upperKey = columnKey.toUpperCase()
+    if (COLUMN_MAPPINGS[upperKey]) {
+      return COLUMN_MAPPINGS[upperKey]
+    }
+    
+    // Return original if no mapping found
+    return columnKey
   }
 
   const isEditable = (columnKey) => {

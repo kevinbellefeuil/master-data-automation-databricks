@@ -1,6 +1,5 @@
 .submit-section {
-  position: sticky;
-  bottom: 0;
+  position: relative;
   background: white;
   padding: 20px 24px;
   border-top: 2px solid #e0e0e0;

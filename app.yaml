@@ -6,5 +6,4 @@ env:
     value: "YOUR_DATABRICKS_HTTP_PATH"
   - name: DATABRICKS_TOKEN
     value: "YOUR_DATABRICKS_TOKEN"
-# NOTE: Replace the placeholder values above with your actual Databricks credentials
-# Recommended: Use Databricks Secrets for production deployments
+# NOTE: Use app.yaml.local with real credentials for deployment (excluded from git)

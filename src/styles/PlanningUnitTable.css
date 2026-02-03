@@ -118,7 +118,7 @@
   overflow-x: auto;
   overflow-y: auto;
   position: relative;
-  max-height: 600px; /* Constrain table height */
+  max-height: 500px; /* Constrain table height so horizontal scrollbar is visible */
   border: 1px solid #dee2e6;
   border-radius: 4px;
 }

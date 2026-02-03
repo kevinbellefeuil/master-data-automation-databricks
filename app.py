@@ -13,7 +13,7 @@ Robust version with graceful degradation:
 @connects MasterDataApp:Backend:API to Databricks:Table with SQL connector
 """
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from pathlib import Path
 import os
@@ -23,6 +23,11 @@ import re
 from threading import Lock
 import requests
 import time
+from io import BytesIO
+from datetime import datetime
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
 
 # Configure logging
 # @mitigates MasterDataApp:Backend against #info_disclosure with sanitized logging
@@ -421,6 +426,51 @@ class DatabricksHandler:
         except Exception as e:
             logger.error(f'Error writing to Databricks: {str(e)}')
             raise
+    
+    def read_historical_data(self):
+        """
+        Read all historical snapshot data from Databricks historical table using REST API
+        Returns data sorted by snapshot_date descending (most recent first)
+        
+        @mitigates MasterDataApp:Backend:Historical against #sql_injection with fixed query
+        @connects MasterDataApp:Backend to Databricks:HistoricalTable with REST API
+        @validates SQL query structure
+        """
+        if not self.connection_available:
+            raise Exception("Databricks connection not configured")
+        
+        HISTORICAL_TABLE_NAME = "cpg_reporting_sandbox.default.planning_unit_stage_historical"
+        
+        try:
+            # Query all historical data, ordered by snapshot date
+            query = f"""
+                SELECT *
+                FROM {HISTORICAL_TABLE_NAME}
+                ORDER BY snapshot_date DESC, PRDID, LOCID
+            """
+            
+            logger.info(f'Reading historical data from {HISTORICAL_TABLE_NAME}')
+            result = self._execute_sql(query)
+            
+            # Parse results
+            data = []
+            if result.get('result') and result['result'].get('data_array'):
+                # Get column names from manifest
+                columns = [col['name'] for col in result['manifest']['schema']['columns']]
+                
+                # Convert each row array to dictionary
+                for row_array in result['result']['data_array']:
+                    row_dict = {}
+                    for i, col_name in enumerate(columns):
+                        row_dict[col_name] = row_array[i]
+                    data.append(row_dict)
+            
+            logger.info(f'Retrieved {len(data)} historical records from Databricks via REST API')
+            return data
+            
+        except Exception as e:
+            logger.error(f'Error reading historical data from Databricks: {str(e)}')
+            raise
 
 
 # Initialize Databricks handler
@@ -651,6 +701,126 @@ def submit_data():
         }), 500
 
 
+def create_excel_from_historical_data(data):
+    """
+    Create an Excel workbook from historical data
+    
+    @mitigates MasterDataApp:Backend:Historical against #data_tampering with server-side generation
+    @validates Data structure before Excel generation
+    """
+    if not data or len(data) == 0:
+        raise ValueError("No historical data available")
+    
+    # Create workbook and select active sheet
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Historical Data"
+    
+    # Get column headers from first row
+    headers = list(data[0].keys())
+    
+    # Write headers with styling
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Write data rows
+    for row_idx, row_data in enumerate(data, start=2):
+        for col_idx, header in enumerate(headers, start=1):
+            value = row_data.get(header)
+            # Convert None to empty string
+            if value is None:
+                value = ""
+            ws.cell(row=row_idx, column=col_idx, value=value)
+    
+    # Auto-adjust column widths
+    for col_idx, header in enumerate(headers, start=1):
+        # Set minimum width based on header length, max 50
+        max_length = len(str(header))
+        for row_idx in range(2, min(len(data) + 2, 100)):  # Sample first 100 rows for width
+            cell_value = ws.cell(row=row_idx, column=col_idx).value
+            if cell_value:
+                max_length = max(max_length, len(str(cell_value)))
+        
+        adjusted_width = min(max_length + 2, 50)
+        ws.column_dimensions[get_column_letter(col_idx)].width = adjusted_width
+    
+    # Freeze header row
+    ws.freeze_panes = "A2"
+    
+    # Save to BytesIO
+    excel_file = BytesIO()
+    wb.save(excel_file)
+    excel_file.seek(0)
+    
+    return excel_file
+
+
+@app.route('/api/historical/download', methods=['GET'])
+def download_historical():
+    """
+    Download historical snapshots as Excel file
+    
+    @mitigates MasterDataApp:Backend:Historical against #sql_injection with parameterized queries
+    @mitigates MasterDataApp:Backend:Historical against #path_traversal with server-side file generation
+    @connects MasterDataApp:Frontend to MasterDataApp:Backend:Historical with HTTP GET
+    @review MasterDataApp:Backend:Historical ensure historical data access is authorized
+    """
+    try:
+        logger.info('Historical data download requested')
+        
+        # Check if database is available
+        if not databricks_handler.connection_available:
+            return jsonify({
+                'error': 'Database not configured',
+                'message': 'Historical data is only available when connected to Databricks'
+            }), 503
+        
+        # Read historical data from Databricks
+        with operation_lock:
+            historical_data = databricks_handler.read_historical_data()
+        
+        if not historical_data or len(historical_data) == 0:
+            return jsonify({
+                'error': 'No historical data found',
+                'message': 'The historical table is empty. Run the weekly snapshot job first.'
+            }), 404
+        
+        logger.info(f'Generating Excel file with {len(historical_data)} historical records')
+        
+        # Generate Excel file
+        excel_file = create_excel_from_historical_data(historical_data)
+        
+        # Create filename with current date
+        filename = f'planning_unit_historical_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        
+        logger.info(f'Sending Excel file: {filename}')
+        
+        # Return Excel file as download
+        return send_file(
+            excel_file,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    
+    except ValueError as ve:
+        logger.error(f'Validation error downloading historical data: {str(ve)}')
+        return jsonify({'error': 'Invalid data', 'message': str(ve)}), 400
+    
+    except Exception as e:
+        logger.error(f'Error downloading historical data: {str(e)}')
+        return jsonify({
+            'error': 'Failed to download historical data',
+            'message': str(e)
+        }), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """
@@ -707,6 +877,7 @@ if __name__ == '__main__':
     logger.info('  - GET  /api/test-connection')
     logger.info('  - GET  /api/data')
     logger.info('  - POST /api/submit')
+    logger.info('  - GET  /api/historical/download')
     logger.info('Frontend: Serving React app from dist/')
     logger.info('FALLBACK: Sample data available if database fails')
     logger.info('=' * 60)

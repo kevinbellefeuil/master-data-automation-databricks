@@ -8,3 +8,7 @@ Werkzeug==3.0.3
 
 # HTTP client for Databricks REST API
 requests>=2.31.0
+
+# Excel file generation for historical data export
+# @mitigates MasterDataApp:Backend:Historical against #data_corruption with openpyxl validation
+openpyxl>=3.1.2

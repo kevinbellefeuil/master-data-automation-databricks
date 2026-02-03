@@ -15,6 +15,7 @@ function App() {
   const [loadError, setLoadError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [lastRefreshDate, setLastRefreshDate] = useState(null)
+  const [isDownloadingHistorical, setIsDownloadingHistorical] = useState(false)
 
   // Format date from ISO to MM/DD/YYYY
   const formatDate = (isoDateString) => {
@@ -112,6 +113,44 @@ function App() {
     }
   }
 
+  const handleHistoricalDownload = async () => {
+    setIsDownloadingHistorical(true)
+    
+    try {
+      console.log('Requesting historical data download...')
+      
+      const response = await fetch('/api/historical/download')
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || `HTTP ${response.status}: Failed to download historical data`)
+      }
+      
+      // Get the blob from response
+      const blob = await response.blob()
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `planning_unit_historical_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      console.log('Historical data download completed')
+      
+    } catch (error) {
+      console.error('Historical download error:', error)
+      alert(`Failed to download historical data: ${error.message}\n\nPlease ensure historical data exists in the database.`)
+    } finally {
+      setIsDownloadingHistorical(false)
+    }
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -119,11 +158,21 @@ function App() {
           <h1 className="app-title">IBP Master Data Automation</h1>
           <p className="subtitle">Review and approve planning unit updates</p>
         </div>
-        {lastRefreshDate && (
-          <div className="header-refresh-date">
-            Last Refresh: {formatDate(lastRefreshDate)}
-          </div>
-        )}
+        <div className="header-controls">
+          <button 
+            className="historical-download-button"
+            onClick={handleHistoricalDownload}
+            disabled={isDownloadingHistorical}
+            title="Download historical snapshots as Excel file"
+          >
+            {isDownloadingHistorical ? 'Downloading...' : '📥 Download Historical Data'}
+          </button>
+          {lastRefreshDate && (
+            <div className="header-refresh-date">
+              Last Refresh: {formatDate(lastRefreshDate)}
+            </div>
+          )}
+        </div>
         <div className="header-branding">
           <img src={gpLogo} alt="Georgia-Pacific Logo" className="gp-logo" />
           <div className="company-name">
